@@ -2,6 +2,7 @@ import os
 import io
 import base64
 import re
+import json
 from flask import Flask, request, jsonify, render_template
 from PIL import Image, ImageDraw, ImageFont
 import google.generativeai as genai
@@ -37,11 +38,25 @@ def annotate_receipt():
         "Return only one numeric value and nothing else. "
         "If there are multiple numbers, choose the subtotal or amount before tax."
     )
+    json_prompt = (
+        "Analyze this receipt and return valid JSON only in this exact format: "
+        '{"amount_before_tax": 118.00}. '
+        "Use the subtotal or amount before tax. Do not include any extra text."
+    )
 
     def parse_amount_from_text(text):
         if not text:
             raise ValueError("Empty model response")
-        cleaned_text = text.replace('$', '').replace(',', '')
+        cleaned_text = text.strip().replace('$', '').replace(',', '')
+        if cleaned_text.startswith("```"):
+            cleaned_text = cleaned_text.strip("`")
+            cleaned_text = cleaned_text.replace("json", "", 1).strip()
+        try:
+            parsed_json = json.loads(cleaned_text)
+            if isinstance(parsed_json, dict) and "amount_before_tax" in parsed_json:
+                return float(parsed_json["amount_before_tax"])
+        except Exception:
+            pass
         match = re.search(r'(?<!\w)(\d+(?:\.\d+)?)', cleaned_text)
         if not match:
             raise ValueError(f"No numeric value found in model response: {text}")
@@ -53,7 +68,15 @@ def annotate_receipt():
         if not response_text and getattr(response, "candidates", None):
             parts = response.candidates[0].content.parts
             response_text = " ".join(getattr(part, "text", "") for part in parts)
-        amount_before_tax = parse_amount_from_text(response_text)
+        try:
+            amount_before_tax = parse_amount_from_text(response_text)
+        except Exception:
+            retry_response = model.generate_content([json_prompt, img])
+            retry_text = getattr(retry_response, "text", None)
+            if not retry_text and getattr(retry_response, "candidates", None):
+                parts = retry_response.candidates[0].content.parts
+                retry_text = " ".join(getattr(part, "text", "") for part in parts)
+            amount_before_tax = parse_amount_from_text(retry_text)
     except Exception as e:
         print(f"Error extracting pre-tax amount: {str(e)}")
         return jsonify({"error": f"Failed to extract the pre-tax amount. {str(e)}"}), 500
