@@ -42,14 +42,18 @@ def annotate_receipt():
         if not text:
             raise ValueError("Empty model response")
         cleaned_text = text.replace('$', '').replace(',', '')
-        match = re.search(r'(?<!\\w)(\\d+(?:\\.\\d+)?)', cleaned_text)
+        match = re.search(r'(?<!\w)(\d+(?:\.\d+)?)', cleaned_text)
         if not match:
             raise ValueError(f"No numeric value found in model response: {text}")
         return float(match.group(1))
 
     try:
         response = model.generate_content([prompt, img])
-        amount_before_tax = parse_amount_from_text(response.text)
+        response_text = getattr(response, "text", None)
+        if not response_text and getattr(response, "candidates", None):
+            parts = response.candidates[0].content.parts
+            response_text = " ".join(getattr(part, "text", "") for part in parts)
+        amount_before_tax = parse_amount_from_text(response_text)
     except Exception as e:
         print(f"Error extracting pre-tax amount: {str(e)}")
         return jsonify({"error": f"Failed to extract the pre-tax amount. {str(e)}"}), 500
