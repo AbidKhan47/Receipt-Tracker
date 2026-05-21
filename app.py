@@ -118,12 +118,30 @@ def annotate_receipt():
     draw = ImageDraw.Draw(img)
     annotation_text = f"If tax were {tax_rate}%, the total amount would be ${new_total_amount:.2f}."
     # choose font size relative to image width for readability
-    # choose font size proportional to image width but keep it smaller and capped
-    font_size = int(img.width * 0.045)
-    font_size = max(18, min(font_size, 36))
-    try:
-        font = ImageFont.truetype("arial.ttf", size=font_size)
-    except Exception:
+    # choose font size proportional to image width with a reasonable cap
+    font_size = int(img.width * 0.06)
+    font_size = max(20, min(font_size, 48))
+
+    # try several common TrueType fonts before falling back to default
+    font = None
+    for fname in ("arial.ttf", "DejaVuSans.ttf", "LiberationSans-Regular.ttf"):
+        try:
+            font = ImageFont.truetype(fname, size=font_size)
+            break
+        except Exception:
+            continue
+    if font is None:
+        # try to locate DejaVu within the Pillow package
+        try:
+            import PIL
+            pil_dir = os.path.dirname(PIL.__file__)
+            dejavu = os.path.join(pil_dir, "fonts", "DejaVuSans.ttf")
+            if os.path.exists(dejavu):
+                font = ImageFont.truetype(dejavu, size=font_size)
+        except Exception:
+            pass
+    if font is None:
+        # final fallback to default (may render smaller); keep stroke larger for readability
         font = ImageFont.load_default()
 
     # wrap text to fit within image width (90% of width)
