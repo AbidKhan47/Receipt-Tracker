@@ -9,7 +9,7 @@
         .header { border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 20px; max-width: 600px; font-size: 18px; }
         .header span { font-weight: bold; color: blue; text-decoration: underline; }
         .form-group { margin-bottom: 20px; }
-        img#preview, img#result-image { max-width: 500px; margin-top: 15px; display: none; border: 1px solid #ccc; }
+        img#preview, img#result-image { max-width: 500px; margin-top: 15px; display: none; border: 1px solid #ccc; width: 100%; height: auto; }
         button { background-color: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 20px; cursor: pointer; font-size: 16px; font-weight: bold; margin-top: 10px; }
         button:hover { background-color: #0056b3; }
         button:disabled { background-color: #ccc; cursor: not-allowed; }
@@ -31,9 +31,9 @@
             <button id="take-photo-btn" type="button" style="background-color: #555; padding: 15px 20px;">📸 Take Photo</button>
             <button id="choose-file-btn" type="button" style="background-color: #555; padding: 15px 20px;">📁 Choose File</button>
         </div>
-        <input type="file" id="photo-library-input" style="display: none;">
-        <input type="file" id="take-photo-input" capture="environment" style="display: none;">
-        <input type="file" id="choose-file-input" style="display: none;">
+        <input type="file" id="photo-library-input" accept="image/*" style="display: none;">
+        <input type="file" id="take-photo-input" accept="image/*" capture="environment" style="display: none;">
+        <input type="file" id="choose-file-input" accept="image/*" style="display: none;">
         <br>
         <img id="preview" alt="Receipt Preview">
         <p id="file-name" style="margin-top: 10px; font-size: 14px; color: #666;"></p>
