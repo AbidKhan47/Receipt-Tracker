@@ -1,6 +1,7 @@
 import os
 import io
 import base64
+import re
 from flask import Flask, request, jsonify, render_template
 from PIL import Image, ImageDraw, ImageFont
 import google.generativeai as genai
@@ -26,13 +27,32 @@ def annotate_receipt():
         img = Image.open(photo.stream).convert("RGB")
     except Exception as e:
         return jsonify({"error": "Invalid image file"}), 400
+
+    if not os.environ.get("GEMINI_API_KEY"):
+        return jsonify({"error": "GEMINI_API_KEY is not configured on the server."}), 500
+
     model = genai.GenerativeModel('gemini-1.5-flash')
-    prompt = "Analyze this receipt and extract the 'sub-total', 'taxable', or 'amount before tax'. Return ONLY the numeric value as a float. Do not include currency symbols."
+    prompt = (
+        "Analyze this receipt and extract the amount before tax. "
+        "Return only one numeric value and nothing else. "
+        "If there are multiple numbers, choose the subtotal or amount before tax."
+    )
+
+    def parse_amount_from_text(text):
+        if not text:
+            raise ValueError("Empty model response")
+        cleaned_text = text.replace('$', '').replace(',', '')
+        match = re.search(r'(?<!\\w)(\\d+(?:\\.\\d+)?)', cleaned_text)
+        if not match:
+            raise ValueError(f"No numeric value found in model response: {text}")
+        return float(match.group(1))
+
     try:
         response = model.generate_content([prompt, img])
-        amount_before_tax = float(response.text.strip().replace('$', '').replace(',', ''))
+        amount_before_tax = parse_amount_from_text(response.text)
     except Exception as e:
-        return jsonify({"error": "Failed to extract the pre-tax amount."}), 500
+        print(f"Error extracting pre-tax amount: {str(e)}")
+        return jsonify({"error": f"Failed to extract the pre-tax amount. {str(e)}"}), 500
     new_total_amount = amount_before_tax * (1 + (tax_rate / 100))
     draw = ImageDraw.Draw(img)
     annotation_text = f"If tax were {tax_rate}%, the total amount would be ${new_total_amount:.2f}."
