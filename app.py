@@ -118,11 +118,12 @@ def annotate_receipt():
     draw = ImageDraw.Draw(img)
     annotation_text = f"If tax were {tax_rate}%, the total amount would be ${new_total_amount:.2f}."
     # choose font size relative to image width for readability
+    # choose font size proportional to image width but keep it smaller and capped
+    font_size = int(img.width * 0.045)
+    font_size = max(18, min(font_size, 36))
     try:
-        font_size = max(28, int(img.width * 0.06))
         font = ImageFont.truetype("arial.ttf", size=font_size)
     except Exception:
-        font_size = max(18, int(img.width * 0.05))
         font = ImageFont.load_default()
 
     # wrap text to fit within image width (90% of width)
