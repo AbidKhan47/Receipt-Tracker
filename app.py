@@ -5,6 +5,7 @@ import base64
 import re
 import json
 import traceback
+import textwrap
 from flask import Flask, request, jsonify, render_template
 from PIL import Image, ImageDraw, ImageFont, ImageOps, ImageFilter
 import google.generativeai as genai
@@ -116,19 +117,60 @@ def annotate_receipt():
     new_total_amount = amount_before_tax * (1 + (tax_rate / 100))
     draw = ImageDraw.Draw(img)
     annotation_text = f"If tax were {tax_rate}%, the total amount would be ${new_total_amount:.2f}."
+    # choose font size relative to image width for readability
     try:
-        font = ImageFont.truetype("arial.ttf", size=max(24, img.width // 30))
-    except IOError:
+        font_size = max(28, int(img.width * 0.06))
+        font = ImageFont.truetype("arial.ttf", size=font_size)
+    except Exception:
+        font_size = max(18, int(img.width * 0.05))
         font = ImageFont.load_default()
-    left, top, right, bottom = draw.textbbox((0, 0), annotation_text, font=font)
-    text_width = right - left
-    text_height = bottom - top
+
+    # wrap text to fit within image width (90% of width)
+    max_text_width = int(img.width * 0.9)
+
+    def wrap_text(text, draw_obj, font_obj, max_width):
+        words = text.split()
+        lines = []
+        cur_line = words[0]
+        for w in words[1:]:
+            test_line = cur_line + ' ' + w
+            bbox = draw_obj.textbbox((0, 0), test_line, font=font_obj)
+            if bbox[2] - bbox[0] <= max_width:
+                cur_line = test_line
+            else:
+                lines.append(cur_line)
+                cur_line = w
+        lines.append(cur_line)
+        return lines
+
+    lines = wrap_text(annotation_text, draw, font, max_text_width)
+    line_heights = [draw.textbbox((0, 0), l, font=font)[3] - draw.textbbox((0, 0), l, font=font)[1] for l in lines]
+    text_widths = [draw.textbbox((0, 0), l, font=font)[2] - draw.textbbox((0, 0), l, font=font)[0] for l in lines]
+    text_block_width = max(text_widths)
+    text_block_height = sum(line_heights) + (len(lines) - 1) * int(font_size * 0.2)
+
     img_width, img_height = img.size
-    x = (img_width - text_width) // 2
-    y = img_height - text_height - (img_height // 10) 
-    padding = 15
-    draw.rectangle([x - padding, y - padding, x + text_width + padding, y + text_height + padding], fill="yellow")
-    draw.text((x, y), annotation_text, fill="red", font=font)
+    x = (img_width - text_block_width) // 2
+    y = img_height - text_block_height - int(img_height * 0.08)
+    padding_x = int(font_size * 0.6)
+    padding_y = int(font_size * 0.4)
+
+    # draw background rectangle
+    draw.rectangle([x - padding_x, y - padding_y, x + text_block_width + padding_x, y + text_block_height + padding_y], fill="yellow")
+
+    # draw each line with an outline for contrast
+    cur_y = y
+    for i, line in enumerate(lines):
+        line_w = text_widths[i]
+        line_h = line_heights[i]
+        line_x = (img_width - line_w) // 2
+        # use stroke to outline text (improves readability)
+        try:
+            draw.text((line_x, cur_y), line, font=font, fill="red", stroke_width=max(2, int(font_size * 0.06)), stroke_fill="black")
+        except TypeError:
+            # older Pillow may not support stroke_width; fallback to simple text
+            draw.text((line_x, cur_y), line, font=font, fill="red")
+        cur_y += line_h + int(font_size * 0.2)
     buffered = io.BytesIO()
     img.save(buffered, format="JPEG")
     img_base64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
