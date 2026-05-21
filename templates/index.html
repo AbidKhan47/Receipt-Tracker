@@ -21,14 +21,22 @@
 </head>
 <body>
     <div class="header">
-        Spring 2025 - EMPL_ID <span>00000000</span>
+        Spring 2025 - EMPL_ID <span>24457265</span>
     </div>
     <h1>CSC 221 - Final Challenge</h1>
     <div class="form-group">
         <label style="font-size: 18px;">Choose or take a receipt photo:</label><br>
-        <input type="file" id="photo-input" accept="image/*">
+        <div style="display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap;">
+            <button id="photo-library-btn" type="button" style="background-color: #555; padding: 15px 20px;">📷 Photo Library</button>
+            <button id="take-photo-btn" type="button" style="background-color: #555; padding: 15px 20px;">📸 Take Photo</button>
+            <button id="choose-file-btn" type="button" style="background-color: #555; padding: 15px 20px;">📁 Choose File</button>
+        </div>
+        <input type="file" id="photo-library-input" accept="image/*" style="display: none;">
+        <input type="file" id="take-photo-input" accept="image/*" capture="environment" style="display: none;">
+        <input type="file" id="choose-file-input" accept="image/*" style="display: none;">
         <br>
         <img id="preview" alt="Receipt Preview">
+        <p id="file-name" style="margin-top: 10px; font-size: 14px; color: #666;"></p>
     </div>
     <div class="form-group">
         <label style="font-size: 18px;">New Tax Rate (%):</label><br>
@@ -40,32 +48,59 @@
         <img id="result-image" alt="Annotated Receipt">
     </div>
     <script>
-        const photoInput = document.getElementById('photo-input');
+        const photoLibraryBtn = document.getElementById('photo-library-btn');
+        const takePhotoBtn = document.getElementById('take-photo-btn');
+        const chooseFileBtn = document.getElementById('choose-file-btn');
+        const photoLibraryInput = document.getElementById('photo-library-input');
+        const takePhotoInput = document.getElementById('take-photo-input');
+        const chooseFileInput = document.getElementById('choose-file-input');
         const previewImg = document.getElementById('preview');
+        const fileName = document.getElementById('file-name');
         const annotateBtn = document.getElementById('annotate-btn');
         const taxRateInput = document.getElementById('tax-rate');
         const resultText = document.getElementById('result-text');
         const resultImage = document.getElementById('result-image');
-        photoInput.addEventListener('change', function(event) {
+
+        let selectedFile = null;
+
+        photoLibraryBtn.addEventListener('click', function() {
+            photoLibraryInput.click();
+        });
+
+        takePhotoBtn.addEventListener('click', function() {
+            takePhotoInput.click();
+        });
+
+        chooseFileBtn.addEventListener('click', function() {
+            chooseFileInput.click();
+        });
+
+        function handleFileSelect(event) {
             const file = event.target.files[0];
             if (file) {
+                selectedFile = file;
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     previewImg.src = e.target.result;
                     previewImg.style.display = 'block';
+                    fileName.textContent = `Selected: ${file.name}`;
                     resultImage.style.display = 'none';
                     resultText.style.display = 'none';
                 }
                 reader.readAsDataURL(file);
             }
-        });
+        }
+
+        photoLibraryInput.addEventListener('change', handleFileSelect);
+        takePhotoInput.addEventListener('change', handleFileSelect);
+        chooseFileInput.addEventListener('change', handleFileSelect);
+
         annotateBtn.addEventListener('click', async function() {
-            const file = photoInput.files[0];
             const taxRate = taxRateInput.value;
-            if (!file) { alert('Please choose a file to upload.'); return; }
+            if (!selectedFile) { alert('Please choose a file to upload.'); return; }
             if (taxRate === '' || taxRate < 0 || taxRate > 100) { alert('Please enter a valid tax rate.'); return; }
             const formData = new FormData();
-            formData.append('photo', file);
+            formData.append('photo', selectedFile);
             formData.append('tax_rate', taxRate);
             annotateBtn.textContent = "Processing...";
             annotateBtn.disabled = true;
