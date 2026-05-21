@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSC 221 - Final Challenge</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; color: #333; }
+        .header { border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 20px; max-width: 600px; font-size: 18px; }
+        .header span { font-weight: bold; color: blue; text-decoration: underline; }
+        .form-group { margin-bottom: 20px; }
+        img#preview, img#result-image { max-width: 500px; margin-top: 15px; display: none; border: 1px solid #ccc; }
+        button { background-color: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 20px; cursor: pointer; font-size: 16px; font-weight: bold; margin-top: 10px; }
+        button:hover { background-color: #0056b3; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
+        .result-container { margin-top: 30px; }
+        .result-text { font-size: 18px; color: #0056b3; margin-bottom: 15px; display: none; }
+        input[type="number"] { padding: 8px; width: 300px; border: 1px solid #ccc; border-radius: 4px; margin-top: 5px; }
+        input[type="file"] { margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        Spring 2025 - EMPL_ID <span>00000000</span>
+    </div>
+    <h1>CSC 221 - Final Challenge</h1>
+    <div class="form-group">
+        <label style="font-size: 18px;">Choose or take a receipt photo:</label><br>
+        <input type="file" id="photo-input" accept="image/*">
+        <br>
+        <img id="preview" alt="Receipt Preview">
+    </div>
+    <div class="form-group">
+        <label style="font-size: 18px;">New Tax Rate (%):</label><br>
+        <input type="number" id="tax-rate" value="25" step="0.1" min="0" max="100">
+    </div>
+    <button id="annotate-btn">Annotate</button>
+    <div class="result-container">
+        <div id="result-text" class="result-text"></div>
+        <img id="result-image" alt="Annotated Receipt">
+    </div>
+    <script>
+        const photoInput = document.getElementById('photo-input');
+        const previewImg = document.getElementById('preview');
+        const annotateBtn = document.getElementById('annotate-btn');
+        const taxRateInput = document.getElementById('tax-rate');
+        const resultText = document.getElementById('result-text');
+        const resultImage = document.getElementById('result-image');
+        photoInput.addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    previewImg.src = e.target.result;
+                    previewImg.style.display = 'block';
+                    resultImage.style.display = 'none';
+                    resultText.style.display = 'none';
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+        annotateBtn.addEventListener('click', async function() {
+            const file = photoInput.files[0];
+            const taxRate = taxRateInput.value;
+            if (!file) { alert('Please choose a file to upload.'); return; }
+            if (taxRate === '' || taxRate < 0 || taxRate > 100) { alert('Please enter a valid tax rate.'); return; }
+            const formData = new FormData();
+            formData.append('photo', file);
+            formData.append('tax_rate', taxRate);
+            annotateBtn.textContent = "Processing...";
+            annotateBtn.disabled = true;
+            try {
+                const response = await fetch('/annotate_receipt', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    resultText.innerHTML = `<strong>The amount before tax was $${data.amount_before_tax}.</strong>`;
+                    resultText.style.display = 'block';
+                    resultImage.src = `data:${data.receipt.mimeType};base64,${data.receipt.data}`;
+                    resultImage.style.display = 'block';
+                    previewImg.style.display = 'none';
+                } else {
+                    alert('Error from server: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('A network error occurred while communicating with the backend.');
+            } finally {
+                annotateBtn.textContent = "Annotate";
+                annotateBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
