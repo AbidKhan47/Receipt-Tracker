@@ -3,4 +3,6 @@ entrypoint: gunicorn -b :$PORT app:app
 
 env_variables:
   # IMPORTANT: Replace the placeholder below with your actual API key 
-  GEMINI_API_KEY: "AIzaSyAiLkPKq92BWm7wPruOkGE6fqx5JFjOvNA"
+  # GEMINI_API_KEY should be set in your deployment environment (do not commit keys).
+  # For local development, put your key in a .env file (see .env.example)
+  GEMINI_API_KEY: "REPLACE_WITH_ENV"

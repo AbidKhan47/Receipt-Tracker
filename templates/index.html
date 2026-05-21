@@ -117,7 +117,11 @@
                     resultImage.style.display = 'block';
                     previewImg.style.display = 'none';
                 } else {
-                    alert('Error from server: ' + data.error);
+                    let msg = 'Error from server: ' + (data.error || 'Unknown error');
+                    if (data.debug) {
+                        msg += '\n\nDebug:\n' + JSON.stringify(data.debug, null, 2);
+                    }
+                    alert(msg);
                 }
             } catch (error) {
                 console.error('Error:', error);
